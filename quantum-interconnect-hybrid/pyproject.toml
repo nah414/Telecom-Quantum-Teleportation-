@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quantum-interconnect-hybrid"
+version = "0.0.1"
+description = "QCHS specification and DCQ bridge starter"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "grpcio",
+  "grpcio-tools",
+  "protobuf",
+  "PyYAML",
+]
+
+[project.scripts]
+qcsd = "qcsd.__main__:main"
+
+[tool.setuptools]
+packages = ["bridge", "qcsd"]
+package-dir = {"" = "."}
+include-package-data = true

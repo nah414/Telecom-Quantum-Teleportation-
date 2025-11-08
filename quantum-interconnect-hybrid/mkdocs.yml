@@ -1,0 +1,8 @@
+site_name: Quantum Interconnect (Hybrid Mode)
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - References: REFERENCES.md
+  - QCHS Specification: qchs_spec.md
+  - DCQ Integration: dcq_plugin.md

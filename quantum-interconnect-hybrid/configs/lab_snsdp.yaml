@@ -1,0 +1,22 @@
+bridge:
+  listen: 127.0.0.1:7600
+  qcs_endpoint: 127.0.0.1:7443   # QCS device service gRPC
+  plugin_endpoint: 127.0.0.1:7700
+  tls:
+    enable: true
+    ca: /etc/qcs/ca.pem
+    cert: /etc/qcs/bridge.pem
+    key: /etc/qcs/bridge.key
+  safety:
+    mu_range: [0.05, 0.8]
+    rep_rate_hz_range: [5.0e6, 2.5e8]
+    amzi_phase_deg_limit: 10
+    qber_hard_ceiling_pct: 11.0
+    shutter_guard: true
+  mapping:
+    urlcc_dscp: 46
+    embb_dscp: 10
+    srv6_bsid_urlcc: "FC00::A"
+    srv6_bsid_embb:  "FC00::B"
+  telemetry_period_ms: 250
+  cycle_period_ms: 500
