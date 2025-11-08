@@ -165,13 +165,35 @@ class DomainMapping:
         )
 
 
+def _extract_endpoint_tls(
+    tls_section: Dict[str, Any], endpoint_key: str
+) -> Dict[str, Any]:
+    """Return per-endpoint TLS settings merged with shared defaults."""
+
+    if not isinstance(tls_section, dict):
+        return {}
+
+    overrides = tls_section.get(endpoint_key, {})
+    if not isinstance(overrides, dict):
+        overrides = {}
+
+    defaults = {
+        key: value
+        for key, value in tls_section.items()
+        if key not in {"qcs", "plugin"}
+    }
+    merged: Dict[str, Any] = {**defaults, **overrides}
+    return merged
+
+
 @dataclass
 class BridgeConfig:
     qcs_endpoint: str
     plugin_endpoint: str
     cycle_period_ms: int
     telemetry_period_ms: int
-    tls: TLSConfig
+    qcs_tls: TLSConfig
+    plugin_tls: TLSConfig
     safety: SafetyLimits
     mapping: DomainMapping
     listen: Optional[str] = None
@@ -179,12 +201,16 @@ class BridgeConfig:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "BridgeConfig":
         bridge = data.get("bridge", {})
+        tls_section = bridge.get("tls", {})
         return cls(
             qcs_endpoint=str(bridge.get("qcs_endpoint")),
             plugin_endpoint=str(bridge.get("plugin_endpoint")),
             cycle_period_ms=int(bridge.get("cycle_period_ms", 500)),
             telemetry_period_ms=int(bridge.get("telemetry_period_ms", 250)),
-            tls=TLSConfig.from_dict(bridge.get("tls", {})),
+            qcs_tls=TLSConfig.from_dict(_extract_endpoint_tls(tls_section, "qcs")),
+            plugin_tls=TLSConfig.from_dict(
+                _extract_endpoint_tls(tls_section, "plugin")
+            ),
             safety=SafetyLimits.from_dict(bridge.get("safety", {})),
             mapping=DomainMapping.from_dict(bridge.get("mapping", {})),
             listen=bridge.get("listen"),
@@ -206,8 +232,8 @@ class BridgeRuntime:
     # ------------------------------------------------------------------
     # Channel / session helpers
     # ------------------------------------------------------------------
-    def _open_channel(self, endpoint: str) -> grpc.Channel:
-        creds = self.config.tls.credentials()
+    def _open_channel(self, endpoint: str, tls: TLSConfig) -> grpc.Channel:
+        creds = tls.credentials()
         if creds is None:
             return grpc.insecure_channel(endpoint)
         return grpc.secure_channel(endpoint, creds)
@@ -215,11 +241,15 @@ class BridgeRuntime:
     def connect(self) -> None:
         """Establish controller and plugin channels."""
         _LOG.info("connecting to QCS controller at %s", self.config.qcs_endpoint)
-        self._qcs_channel = self._open_channel(self.config.qcs_endpoint)
+        self._qcs_channel = self._open_channel(
+            self.config.qcs_endpoint, self.config.qcs_tls
+        )
         self._qcs = qcs_rpc.QchsControlStub(self._qcs_channel)
 
         _LOG.info("connecting to dcq plugin at %s", self.config.plugin_endpoint)
-        self._plugin_channel = self._open_channel(self.config.plugin_endpoint)
+        self._plugin_channel = self._open_channel(
+            self.config.plugin_endpoint, self.config.plugin_tls
+        )
         self._plugin = dcq_rpc.DualClockPluginStub(self._plugin_channel)
 
     def close(self) -> None:
